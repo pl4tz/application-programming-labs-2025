@@ -1,13 +1,17 @@
-import os
-import csv
 import argparse
-import requests
+import csv
+import os
 import random
+from typing import List
+
+import requests
 from bs4 import BeautifulSoup
+from requests.exceptions import RequestException
 
-BASE_URL = "https://mixkit.co/free-sound-effects/discover/"
 
-CATEGORIES = [
+BASE_URL: str = "https://mixkit.co/free-sound-effects/discover/"
+
+CATEGORIES: List[str] = [
     "nature",
     "animals",
     "transport",
@@ -18,24 +22,26 @@ CATEGORIES = [
 ]
 
 
-def parse_duration(text):
-    parts = text.strip().split(":")
-    if len(parts) == 2:
-        return int(parts[0]) * 60 + int(parts[1])
+def parse_duration(text: str) -> int:
+    try:
+        parts = text.strip().split(":")
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+    except ValueError:
+        return 0
     return 0
 
 
-def collect_audio_links(min_duration, needed_count):
+def collect_audio_links(min_duration: int, needed_count: int) -> List[str]:
     headers = {"User-Agent": "Mozilla/5.0"}
 
     categories = CATEGORIES[:]
     random.shuffle(categories)
 
-    collected = []
-    used_categories = []
+    collected: List[str] = []
+    used_categories: List[str] = []
 
     for category in categories:
-
         if len(collected) >= needed_count:
             break
 
@@ -43,8 +49,10 @@ def collect_audio_links(min_duration, needed_count):
         print("\nТема:", category)
         print("Парсим:", url)
 
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+        except RequestException:
             print("Ошибка запроса, пропускаем.")
             continue
 
@@ -56,7 +64,6 @@ def collect_audio_links(min_duration, needed_count):
         before_count = len(collected)
 
         for block, duration_block in zip(audio_blocks, duration_blocks):
-
             seconds = parse_duration(duration_block.text)
 
             if seconds > min_duration:
@@ -78,37 +85,43 @@ def collect_audio_links(min_duration, needed_count):
     return collected[:needed_count]
 
 
-def download_files(links, save_path):
+def download_files(links: List[str], save_path: str) -> List[str]:
     os.makedirs(save_path, exist_ok=True)
-    downloaded = []
+    downloaded: List[str] = []
 
     for i, link in enumerate(links):
         filename = os.path.join(save_path, f"audio_{i+1}.mp3")
         print(f"Скачиваем {i+1}/{len(links)}")
 
-        r = requests.get(link, stream=True)
-        with open(filename, "wb") as f:
-            for chunk in r.iter_content(1024):
-                f.write(chunk)
-
-        downloaded.append(filename)
+        try:
+            r = requests.get(link, stream=True, timeout=10)
+            r.raise_for_status()
+            with open(filename, "wb") as f:
+                for chunk in r.iter_content(1024):
+                    f.write(chunk)
+            downloaded.append(filename)
+        except (RequestException, OSError):
+            print("Ошибка скачивания:", link)
 
     return downloaded
 
 
-def create_csv(file_paths, csv_path):
-    with open(csv_path, "w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-        writer.writerow(["absolute_path", "relative_path"])
+def create_csv(file_paths: List[str], csv_path: str) -> None:
+    try:
+        with open(csv_path, "w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(["absolute_path", "relative_path"])
 
-        for path in file_paths:
-            writer.writerow([os.path.abspath(path), os.path.relpath(path)])
+            for path in file_paths:
+                writer.writerow([os.path.abspath(path), os.path.relpath(path)])
 
-    print("CSV создан.")
+        print("CSV создан.")
+    except OSError:
+        print("Ошибка при создании CSV.")
 
 
 class AudioIterator:
-    def __init__(self, source):
+    def __init__(self, source: str) -> None:
         if os.path.isfile(source):
             self.file = open(source, encoding="utf-8")
             self.reader = csv.reader(self.file)
@@ -128,9 +141,13 @@ class AudioIterator:
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self) -> str:
         if self.mode == "csv":
-            return next(self.reader)[0]
+            try:
+                return next(self.reader)[0]
+            except StopIteration:
+                self.file.close()
+                raise
         else:
             if self.index >= len(self.files):
                 raise StopIteration
@@ -139,7 +156,7 @@ class AudioIterator:
             return file
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--save_path", required=True)
     parser.add_argument("--csv_path", required=True)
