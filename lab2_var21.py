@@ -23,6 +23,7 @@ CATEGORIES: List[str] = [
 
 
 def parse_duration(text: str) -> int:
+    """Convert duration string (MM:SS) to seconds."""
     try:
         parts = text.strip().split(":")
         if len(parts) == 2:
@@ -33,6 +34,7 @@ def parse_duration(text: str) -> int:
 
 
 def collect_audio_links(min_duration: int, needed_count: int) -> List[str]:
+    """Collect audio links filtered by minimum duration."""
     headers = {"User-Agent": "Mozilla/5.0"}
 
     categories = CATEGORIES[:]
@@ -86,6 +88,7 @@ def collect_audio_links(min_duration: int, needed_count: int) -> List[str]:
 
 
 def download_files(links: List[str], save_path: str) -> List[str]:
+    """Download audio files from provided links."""
     os.makedirs(save_path, exist_ok=True)
     downloaded: List[str] = []
 
@@ -107,6 +110,7 @@ def download_files(links: List[str], save_path: str) -> List[str]:
 
 
 def create_csv(file_paths: List[str], csv_path: str) -> None:
+    """Create CSV annotation file with absolute and relative paths."""
     try:
         with open(csv_path, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
@@ -121,6 +125,8 @@ def create_csv(file_paths: List[str], csv_path: str) -> None:
 
 
 class AudioIterator:
+    """Iterator for audio files from CSV file or directory."""
+
     def __init__(self, source: str) -> None:
         if os.path.isfile(source):
             self.file = open(source, encoding="utf-8")
@@ -157,6 +163,7 @@ class AudioIterator:
 
 
 def main() -> None:
+    """Program entry point."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--save_path", required=True)
     parser.add_argument("--csv_path", required=True)
