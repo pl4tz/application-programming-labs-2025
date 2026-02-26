@@ -1,17 +1,28 @@
 import argparse
-import numpy as np
-import soundfile as sf
-import matplotlib.pyplot as plt
 import os
 
+import matplotlib.pyplot as plt
+import numpy as np
+import soundfile as sf
 
-def reverse_audio(data):
+
+def reverse_audio(data: np.ndarray) -> np.ndarray:
+    """Return reversed audio signal."""
     return data[::-1]
 
 
-def plot_audio(original, reversed_audio, samplerate):
-    time_original = np.linspace(0, len(original) / samplerate, num=len(original))
-    time_reversed = np.linspace(0, len(reversed_audio) / samplerate, num=len(reversed_audio))
+def plot_audio(
+    original: np.ndarray,
+    reversed_audio: np.ndarray,
+    samplerate: int
+) -> None:
+    """Plot original and reversed audio signals."""
+    time_original = np.linspace(
+        0, len(original) / samplerate, num=len(original)
+    )
+    time_reversed = np.linspace(
+        0, len(reversed_audio) / samplerate, num=len(reversed_audio)
+    )
 
     plt.figure(figsize=(12, 6))
 
@@ -31,10 +42,11 @@ def plot_audio(original, reversed_audio, samplerate):
     plt.show()
 
 
-def main():
+def main() -> None:
+    """CLI entry point."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", required=True)
-    parser.add_argument("--output_path", required=True)
+    parser.add_argument("--input_path", required=True, type=str)
+    parser.add_argument("--output_path", required=True, type=str)
 
     args = parser.parse_args()
 
@@ -42,7 +54,11 @@ def main():
         print("Файл не найден.")
         return
 
-    data, samplerate = sf.read(args.input_path)
+    try:
+        data, samplerate = sf.read(args.input_path)
+    except Exception:
+        print("Ошибка чтения аудиофайла.")
+        return
 
     print("Размер массива:", data.shape)
     print("Частота дискретизации:", samplerate)
@@ -52,7 +68,11 @@ def main():
 
     plot_audio(data, reversed_data, samplerate)
 
-    sf.write(args.output_path, reversed_data, samplerate)
+    try:
+        sf.write(args.output_path, reversed_data, samplerate)
+    except Exception:
+        print("Ошибка записи файла.")
+        return
 
     print("Файл сохранён:", args.output_path)
 
