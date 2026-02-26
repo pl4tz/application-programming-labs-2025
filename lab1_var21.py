@@ -1,15 +1,17 @@
-import re
 import argparse
+import re
 
 
 NAME_PATTERN = r'^[А-ЯЁ][а-яё]+$'
 
 
 def is_valid_name(value: str) -> bool:
+    """Check if the name matches required pattern."""
     return re.fullmatch(NAME_PATTERN, value) is not None
 
 
-def main():
+def main() -> None:
+    """Program entry point."""
     parser = argparse.ArgumentParser(description="Lab 1 Variant 21")
     parser.add_argument("filename", type=str, help="Input file name")
     args = parser.parse_args()
